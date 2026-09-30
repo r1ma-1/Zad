@@ -72,7 +72,7 @@ footer{text-align:center;color:#8c968f;font-size:11px;border-top:1px solid var(-
 <section id="about" class="view"><button class="back" onclick="go('home')">← الفهرس</button><div class="section-head"><div><h1>عن زاد</h1><p>تجربة رقمية هادئة للقرآن والذكر</p></div></div><div class="dhikr"><div class="dhikr-text">زاد يجمع القرآن الكريم، التلاوة، التفسير الميسّر، أذكار الصباح والمساء، والمسبحة في تجربة واحدة متجاوبة مع الهاتف.</div><p style="color:var(--muted);line-height:1.9">حرصًا على الدقة، لا ينشئ زاد تفسيرًا من عنده. التفسير المعروض هو <b>التفسير الميسّر</b>، والمرجع الموثق له مجمع الملك فهد لطباعة المصحف الشريف، ويُجلب آية بآية من خدمة بيانات موثقة. نص القرآن المعروض بالرسم العثماني والتلاوات الصوتية تُخدم عبر Al Quran Cloud، الذي يوضح مصادره وحقوق التلاوات.</p><p style="line-height:2;font-size:12px"><a class="source-link" href="https://qurancomplex.gov.sa/en/techquran/dev/" target="_blank" rel="noopener">مجمع الملك فهد — منصة المطورين والتفسير الميسّر</a><br><a class="source-link" href="https://quranenc.com/ar/browse/arabic_moyassar/1-1" target="_blank" rel="noopener">QuranEnc — التفسير الميسّر</a><br><a class="source-link" href="https://alquran.cloud/cdn" target="_blank" rel="noopener">Al Quran Cloud — النص والتلاوات</a><br><a class="source-link" href="https://islamhouse.com/ar/books/2522" target="_blank" rel="noopener">حصن المسلم — سعيد بن علي بن وهف القحطاني</a></p></div></section>
 </main><footer>زاد · القرآن الكريم والأذكار</footer></div>
 
-<div id="player" class="player"><button id="play" class="play" onclick="toggleAudio()">▶</button><div class="meta"><b id="ptitle">تلاوة</b><small id="preader">—</small></div><button class="close" onclick="stopAudio()">×</button><audio id="audio" preload="none"></audio></div>
+<div id="player" class="player"><button id="play" class="play" onclick="toggleAudio()">▶</button><div class="meta"><b id="ptitle">تلاوة</b><small id="preader">—</small></div><button class="close" onclick="stopAudio()">×</button><audio id="audio" preload="metadata" playsinline></audio></div>
 <div id="searchModal" class="modal" onclick="if(event.target===this)closeSearch()"><div class="modal-box"><h2>البحث في زاد</h2><input id="globalSearch" class="field" style="width:100%" placeholder="ابحث عن سورة أو ذكر..." oninput="globalSearch(this.value)"><div id="searchResults" class="status">ابدأ بالكتابة.</div><div class="modal-actions"><button class="btn" onclick="closeSearch()">إغلاق</button></div></div></div>
 
 <script>
@@ -115,41 +115,17 @@ let playbackQueue=[],queueIndex=0,queueMode='single',queueName='',queueReader=''
 function bitrateList(preferred){return [preferred,192,128,64,48,40,32].filter((v,i,a)=>v&&a.indexOf(v)===i)}
 function surahStartAyah(n){return 1+surahs.filter(s=>s.number<n).reduce((sum,s)=>sum+Number(s.numberOfAyahs||0),0)}
 function playSurah(n,name){
-  const id=document.getElementById('reciter').value;
-  const r=selectedReciter();
-  const candidates=bitrateList(r.bitrate).map(b=>surahAudioUrl(id,n,b));
-  audioCandidates=candidates;
+  let id=document.getElementById('reciter').value,r=selectedReciter();
+  let meta=surahs.find(s=>s.number===n);
+  if(!meta){document.getElementById('preader').textContent='تعذر معرفة السورة';return}
+  // تشغيل ملف السورة الكامل مباشرة، وليس ملفات الآيات.
+  playbackQueue=[];queueIndex=0;queueMode='full';queueName=name;queueReader=r.name;queueBitrates=bitrateList(r.bitrate);
+  audioCandidates=queueBitrates.map(b=>surahAudioUrl(id,n,b));
   candidateIndex=0;
-  playbackQueue=[];
-  queueIndex=0;
-  queueMode='surah';
-  queueName=name;
-  queueReader=r.name;
-  queueBitrates=bitrateList(r.bitrate);
   document.getElementById('ptitle').textContent='سورة '+name+' — كاملة';
-  document.getElementById('preader').textContent=r.name+' · تلاوة متواصلة';
+  document.getElementById('preader').textContent=r.name+' · تلاوة متواصلة — ملف السورة كاملًا';
   document.getElementById('player').classList.add('show');
-  loadFullSurahCandidate();
-}
-function loadFullSurahCandidate(){
-  if(candidateIndex>=audioCandidates.length){
-    document.getElementById('preader').textContent='تعذر تشغيل التلاوة الكاملة من المصدر الحالي';
-    document.getElementById('play').textContent='▶';
-    return;
-  }
-  audio.src=audioCandidates[candidateIndex];
-  currentAudio=audio.src;
-  audio.load();
-  audio.play().then(()=>{
-    document.getElementById('play').textContent='❚❚';
-  }).catch(err=>{
-    if(err && err.name==='NotAllowedError'){
-      document.getElementById('preader').textContent='اضغط زر التشغيل ▶ للبدء';
-    }else{
-      candidateIndex++;
-      loadFullSurahCandidate();
-    }
-  });
+  loadCandidate();
 }
 function playAyah(n,name,v){
   let r=selectedReciter();
@@ -181,10 +157,19 @@ function loadCandidate(){
     }else{candidateIndex++;loadCandidate();}
   });
 }
-audio.onerror=()=>{if(queueMode==='surah' && playbackQueue.length===0){if(candidateIndex<audioCandidates.length-1){candidateIndex++;loadFullSurahCandidate()}else{document.getElementById('preader').textContent='تعذر تشغيل التلاوة الكاملة من المصدر الحالي';document.getElementById('play').textContent='▶';}}else{if(candidateIndex<audioCandidates.length-1){candidateIndex++;loadCandidate()}else{document.getElementById('preader').textContent='تعذر تشغيل هذه الآية من المصدر الحالي';}}};
-audio.onended=()=>{if(queueMode==='surah' && playbackQueue.length===0){document.getElementById('play').textContent='▶';document.getElementById('preader').textContent=queueReader+' · اكتملت السورة ✓';}else{queueIndex++;playQueueItem();}};
+audio.onerror=()=>{if(candidateIndex<audioCandidates.length-1){candidateIndex++;loadCandidate()}else{document.getElementById('preader').textContent='تعذر تشغيل هذه الآية من المصدر الحالي';}};
+audio.onended=()=>{
+  if(queueMode==='full'){
+    document.getElementById('play').textContent='▶';
+    document.getElementById('preader').textContent=queueReader+' · اكتملت السورة ✓';
+    audio.pause();audio.removeAttribute('src');
+    return;
+  }
+  queueIndex++;
+  playQueueItem();
+};
 function toggleAudio(){
-  if(!audio.src){if(playbackQueue.length)playQueueItem();return}
+  if(!audio.src){if(queueMode==='full') loadCandidate(); else if(playbackQueue.length) playQueueItem(); return}
   if(audio.paused){audio.play().then(()=>document.getElementById('play').textContent='❚❚').catch(()=>{});}
   else{audio.pause();document.getElementById('play').textContent='▶'}
 }
@@ -204,6 +189,26 @@ function setTarget(n){target=n;localStorage.zadTarget=n;document.getElementById(
 function openSearch(){document.getElementById('searchModal').classList.add('show');document.getElementById('globalSearch').focus()}
 function closeSearch(){document.getElementById('searchModal').classList.remove('show')}
 function globalSearch(q){q=q.trim();let out=document.getElementById('searchResults');if(!q){out.textContent='ابدأ بالكتابة.';return}let s=surahs.filter(x=>x.name.includes(q)).slice(0,8);let d=adhkar.filter(x=>(x.content||'').includes(q)).slice(0,5);out.innerHTML=[...s.map(x=>`<button class="surah" onclick="closeSearch();openSurah(${x.number})"><span class="snum"><span>${x.number}</span></span><b class="sname">${esc(x.name)}</b></button>`),...d.map(x=>`<div class="dhikr"><div class="tag">ذكر</div><div class="dhikr-text">${esc(x.content)}</div></div>`)].join('')||'لا توجد نتائج.'}
-loadQuran();ensureDhikr();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+loadQuran();ensureDhikr();
+// لا نسجل Service Worker قديمًا قد يعيد نسخة قديمة من الصفحة.
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}
+// دعم التشغيل في الخلفية وشاشة القفل عبر Media Session حيث يدعمه المتصفح.
+if('mediaSession' in navigator){
+  navigator.mediaSession.setActionHandler?.('play',()=>audio.play());
+  navigator.mediaSession.setActionHandler?.('pause',()=>audio.pause());
+  navigator.mediaSession.setActionHandler?.('stop',()=>stopAudio());
+  navigator.mediaSession.setActionHandler?.('seekbackward',()=>{audio.currentTime=Math.max(0,audio.currentTime-10)});
+  navigator.mediaSession.setActionHandler?.('seekforward',()=>{audio.currentTime=Math.min(audio.duration||Infinity,audio.currentTime+10)});
+}
+function updateMediaSession(){
+  if(!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata=new MediaMetadata({title:document.getElementById('ptitle').textContent,artist:document.getElementById('preader').textContent,album:'زاد — القرآن الكريم'});
+}
+const _oldPlaySurah=playSurah;
+playSurah=function(n,name){_oldPlaySurah(n,name);setTimeout(updateMediaSession,0)};
+const _oldPlayAyah=playAyah;
+playAyah=function(n,name,v){_oldPlayAyah(n,name,v);setTimeout(updateMediaSession,0)};
+audio.addEventListener('play',()=>{if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing'});
+audio.addEventListener('pause',()=>{if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused'});
 </script>
 </body></html>
