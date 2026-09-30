@@ -91,7 +91,7 @@ function escAttr(s){return esc(s).replace(/\n/g,' ')}
 async function loadQuran(){try{let r=await fetch(QAPI+'/surah');let j=await r.json();if(j.code!==200)throw Error();surahs=j.data||[];renderSurahs()}catch(e){document.getElementById('surahs').innerHTML='<div class="error">تعذر تحميل قائمة السور. تحقق من الاتصال بالإنترنت.</div>'}}
 function renderSurahs(){let q=(document.getElementById('qsearch')?.value||'').trim();let arr=surahs.filter(s=>!q||s.name.includes(q)||s.englishName?.toLowerCase().includes(q.toLowerCase())||String(s.number)===q);document.getElementById('surahs').innerHTML=arr.map(s=>`<button class="surah" onclick="openSurah(${s.number})"><span class="snum"><span>${s.number}</span></span><span><b class="sname">${esc(s.name)}</b><small class="smeta">${s.revelationType==='Meccan'?'مكية':'مدنية'} · ${s.numberOfAyahs} آية</small></span><span class="push">›</span></button>`).join('')||'<div class="status">لا توجد نتائج.</div>'}
 async function fetchTafsir(n){let r=await fetch(`${TAFSIRAPI}/sura/${TAFSIRKEY}/${n}`);if(!r.ok)throw Error('tafsir');let j=await r.json();return Array.isArray(j?.result)?j.result:j?.data||[]}
-async function openSurah(n){go('reader');let box=document.getElementById('readerBox');box.innerHTML='<div class="status">جارٍ تحميل السورة والتفسير الميسّر…</div>';try{let [qr,tr]=await Promise.all([fetch(QAPI+'/surah/'+n+'/quran-uthmani'),fetchTafsir(n)]);let qj=await qr.json(),s=qj.data;let taf=new Map(tr.map(x=>[Number(x.aya),x.translation||'']));localStorage.zadLastRead=JSON.stringify({surah:n,ayah:1});box.innerHTML=`<div class="reader"><div class="reader-top"><h2>${esc(s.name)}</h2><small>${s.revelationType==='Meccan'?'مكية':'مدنية'} · ${s.numberOfAyahs} آية</small><div class="reader-tools"><button class="btn primary" onclick="playSurah(${n},'${escAttr(s.name)}')">▶ السورة كاملة</button><button class="btn" onclick="changeFont(2)">تكبير</button><button class="btn" onclick="changeFont(-2)">تصغير</button></div><div style="margin-top:10px;color:var(--muted);font-size:11px">التفسير: <b>التفسير الميسّر</b> · مجمع الملك فهد لطباعة المصحف الشريف</div></div>${s.ayahs.map(a=>{let t=taf.get(a.numberInSurah)||'';return `<div class="ayah" id="a${a.numberInSurah}"><span class="ayah-no">${a.numberInSurah}</span><div><div class="ayah-text">${esc(a.text)}</div><details class="tafsir"><summary>📖 التفسير الميسّر</summary><div class="tafsir-text">${esc(t)||'لا يتوفر التفسير لهذه الآية حاليًا.'}</div><small class="tafsir-source">المصدر: التفسير الميسّر — مجمع الملك فهد لطباعة المصحف الشريف</small></details></div><div class="ayah-actions"><button class="mini" title="تشغيل" onclick="playAyah(${a.number},'${escAttr(s.name)}',${a.numberInSurah})">▶</button><button class="mini" title="نسخ" onclick="copyText(${JSON.stringify(a.text)})">⧉</button><button class="mini" title="مفضلة" onclick="fav('ayah-${a.number}',${JSON.stringify({kind:'آية',title:s.name+' · '+a.numberInSurah,text:a.text})})">♡</button></div></div>`}).join('')}</div>`}catch(e){box.innerHTML='<div class="error">تعذر تحميل السورة أو التفسير الميسّر. حاول مرة أخرى مع اتصال بالإنترنت.</div>'}}
+async function openSurah(n){go('reader');let box=document.getElementById('readerBox');box.innerHTML='<div class="status">جارٍ تحميل السورة والتفسير الميسّر…</div>';try{let [qr,tr]=await Promise.all([fetch(QAPI+'/surah/'+n+'/quran-uthmani'),fetchTafsir(n)]);let qj=await qr.json(),s=qj.data;let taf=new Map(tr.map(x=>[Number(x.aya),x.translation||'']));localStorage.zadLastRead=JSON.stringify({surah:n,ayah:1});box.innerHTML=`<div class="reader"><div class="reader-top"><h2>${esc(s.name)}</h2><small>${s.revelationType==='Meccan'?'مكية':'مدنية'} · ${s.numberOfAyahs} آية</small><div class="reader-tools"><button class="btn primary" onclick="playSurah(${n},'${escAttr(s.name)}')">▶ تشغيل السورة كاملة</button><button class="btn" onclick="changeFont(2)">تكبير</button><button class="btn" onclick="changeFont(-2)">تصغير</button></div><div style="margin-top:10px;color:var(--muted);font-size:11px">التفسير: <b>التفسير الميسّر</b> · مجمع الملك فهد لطباعة المصحف الشريف</div></div>${s.ayahs.map(a=>{let t=taf.get(a.numberInSurah)||'';return `<div class="ayah" id="a${a.numberInSurah}"><span class="ayah-no">${a.numberInSurah}</span><div><div class="ayah-text">${esc(a.text)}</div><details class="tafsir"><summary>📖 التفسير الميسّر</summary><div class="tafsir-text">${esc(t)||'لا يتوفر التفسير لهذه الآية حاليًا.'}</div><small class="tafsir-source">المصدر: التفسير الميسّر — مجمع الملك فهد لطباعة المصحف الشريف</small></details></div><div class="ayah-actions"><button class="mini" title="تشغيل" onclick="playAyah(${a.number},'${escAttr(s.name)}',${a.numberInSurah})">▶</button><button class="mini" title="نسخ" onclick="copyText(${JSON.stringify(a.text)})">⧉</button><button class="mini" title="مفضلة" onclick="fav('ayah-${a.number}',${JSON.stringify({kind:'آية',title:s.name+' · '+a.numberInSurah,text:a.text})})">♡</button></div></div>`}).join('')}</div>`}catch(e){box.innerHTML='<div class="error">تعذر تحميل السورة أو التفسير الميسّر. حاول مرة أخرى مع اتصال بالإنترنت.</div>'}}
 function changeFont(delta){document.querySelectorAll('.ayah-text').forEach(e=>{let size=parseFloat(getComputedStyle(e).fontSize);e.style.fontSize=Math.max(18,Math.min(42,size+delta))+'px'})}
 const RECITERS={
 'ar.alafasy':{name:'مشاري راشد العفاسي',bitrate:128},
@@ -111,13 +111,59 @@ function selectedReciter(){let id=document.getElementById('reciter').value;retur
 function surahAudioUrl(id,n,b){return `https://cdn.islamic.network/quran/audio-surah/${b}/${id}/${n}.mp3`}
 function ayahAudioUrl(id,n,b){return `https://cdn.islamic.network/quran/audio/${b}/${id}/${n}.mp3`}
 let audioCandidates=[],candidateIndex=0;
-function playSurah(n,name){let id=document.getElementById('reciter').value,r=selectedReciter();audioCandidates=[r.bitrate,...[192,128,64,48,40,32].filter(x=>x!==r.bitrate)].map(b=>surahAudioUrl(id,n,b));candidateIndex=0;startAudioCandidates('سورة '+name,r.name)}
-function playAyah(n,name,v){let id=document.getElementById('reciter').value,r=selectedReciter();audioCandidates=[r.bitrate,...[192,128,64,48,40,32].filter(x=>x!==r.bitrate)].map(b=>ayahAudioUrl(id,n,b));candidateIndex=0;startAudioCandidates(`سورة ${name} · الآية ${v}`,r.name)}
-function startAudioCandidates(title,reader){document.getElementById('ptitle').textContent=title;document.getElementById('preader').textContent=reader;document.getElementById('player').classList.add('show');loadCandidate()}
-function loadCandidate(){if(candidateIndex>=audioCandidates.length){document.getElementById('preader').textContent='تعذر تشغيل التلاوة من المصدر الحالي';document.getElementById('play').textContent='▶';return}audio.src=audioCandidates[candidateIndex];currentAudio=audio.src;audio.load();audio.play().then(()=>document.getElementById('play').textContent='❚❚').catch(()=>{candidateIndex++;loadCandidate()})}
-audio.onerror=()=>{if(candidateIndex<audioCandidates.length-1){candidateIndex++;loadCandidate()}};
-function toggleAudio(){if(!audio.src)return;if(audio.paused){audio.play();document.getElementById('play').textContent='❚❚'}else{audio.pause();document.getElementById('play').textContent='▶'}}
-function stopAudio(){audio.pause();audio.removeAttribute('src');document.getElementById('player').classList.remove('show')}
+let playbackQueue=[],queueIndex=0,queueMode='single',queueName='',queueReader='',queueBitrates=[];
+function bitrateList(preferred){return [preferred,192,128,64,48,40,32].filter((v,i,a)=>v&&a.indexOf(v)===i)}
+function surahStartAyah(n){return 1+surahs.filter(s=>s.number<n).reduce((sum,s)=>sum+Number(s.numberOfAyahs||0),0)}
+function playSurah(n,name){
+  let id=document.getElementById('reciter').value,r=selectedReciter();
+  let meta=surahs.find(s=>s.number===n);let count=Number(meta?.numberOfAyahs||0);
+  if(!count){document.getElementById('preader').textContent='تعذر معرفة عدد آيات السورة';return}
+  let start=surahStartAyah(n);
+  playbackQueue=Array.from({length:count},(_,i)=>start+i);
+  queueIndex=0;queueMode='surah';queueName=name;queueReader=r.name;queueBitrates=bitrateList(r.bitrate);
+  document.getElementById('ptitle').textContent='سورة '+name+' — السورة كاملة';
+  document.getElementById('preader').textContent=r.name+' · تشغيل متواصل آيةً آية';
+  document.getElementById('player').classList.add('show');
+  playQueueItem();
+}
+function playAyah(n,name,v){
+  let r=selectedReciter();
+  playbackQueue=[n];queueIndex=0;queueMode='single';queueName=name;queueReader=r.name;queueBitrates=bitrateList(r.bitrate);
+  document.getElementById('ptitle').textContent=`سورة ${name} · الآية ${v}`;
+  document.getElementById('preader').textContent=r.name;
+  document.getElementById('player').classList.add('show');
+  playQueueItem();
+}
+function playQueueItem(){
+  if(queueIndex>=playbackQueue.length){
+    document.getElementById('play').textContent='▶';
+    document.getElementById('preader').textContent=queueMode==='surah'?queueReader+' · اكتملت السورة ✓':queueReader;
+    audio.pause();audio.removeAttribute('src');return;
+  }
+  let ayahNo=playbackQueue[queueIndex],id=document.getElementById('reciter').value;
+  audioCandidates=queueBitrates.map(b=>ayahAudioUrl(id,ayahNo,b));candidateIndex=0;
+  loadCandidate();
+}
+function loadCandidate(){
+  if(candidateIndex>=audioCandidates.length){
+    document.getElementById('preader').textContent='تعذر تشغيل هذه الآية من المصدر الحالي';
+    document.getElementById('play').textContent='▶';return;
+  }
+  audio.src=audioCandidates[candidateIndex];currentAudio=audio.src;audio.load();
+  audio.play().then(()=>document.getElementById('play').textContent='❚❚').catch(err=>{
+    if(err && err.name==='NotAllowedError'){
+      document.getElementById('preader').textContent='اضغط زر التشغيل ▶ للبدء';
+    }else{candidateIndex++;loadCandidate();}
+  });
+}
+audio.onerror=()=>{if(candidateIndex<audioCandidates.length-1){candidateIndex++;loadCandidate()}else{document.getElementById('preader').textContent='تعذر تشغيل هذه الآية من المصدر الحالي';}};
+audio.onended=()=>{queueIndex++;if(queueMode==='surah'){document.getElementById('ptitle').textContent='سورة '+queueName+' — '+queueIndex+' / '+playbackQueue.length;}playQueueItem()};
+function toggleAudio(){
+  if(!audio.src){if(playbackQueue.length)playQueueItem();return}
+  if(audio.paused){audio.play().then(()=>document.getElementById('play').textContent='❚❚').catch(()=>{});}
+  else{audio.pause();document.getElementById('play').textContent='▶'}
+}
+function stopAudio(){audio.pause();audio.removeAttribute('src');playbackQueue=[];queueIndex=0;document.getElementById('player').classList.remove('show')}
 function copyText(t){navigator.clipboard?.writeText(t).then(()=>alert('تم النسخ')).catch(()=>alert('تعذر النسخ تلقائيًا'))}
 async function ensureDhikr(){if(adhkar.length){renderDhikr('morning');renderDhikr('evening');return}try{let r=await fetch(ADHURL);if(!r.ok)throw Error();adhkar=await r.json();renderDhikr('morning');renderDhikr('evening')}catch(e){document.getElementById('morningList').innerHTML='<div class="error">تعذر تحميل الأذكار. حاول مع اتصال بالإنترنت.</div>';document.getElementById('eveningList').innerHTML='<div class="error">تعذر تحميل الأذكار. حاول مع اتصال بالإنترنت.</div>'}}
 function dhType(type){return adhkar.filter(x=>type==='morning'?x.type===1||x.type===0:x.type===2||x.type===0).sort((a,b)=>(a.order||0)-(b.order||0))}
